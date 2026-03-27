@@ -11,7 +11,7 @@ services:
     environment:
       - SPARK_MODE=master
     volumes:
-      - ./spark/jobs:app/jobs
+      - ./spark/jobs:/app/jobs
     networks:
       - spark-net
 
@@ -39,7 +39,49 @@ services:
     networks:
       - spark-net
   
+    # Airflow
+  postgres:
+    image: postgres:14
+    container_name: airflow-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - spark-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      retries: 5
+
+  airflow:
+    build: ./airflow
+    container_name: airflow
+    restart: always
+    ports:
+      - "8081:8080"
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: "False"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+
+    networks:
+      - spark-net
 
 networks:
   spark-net:
     driver: bridge
+
+volumes:
+  postgres_data:

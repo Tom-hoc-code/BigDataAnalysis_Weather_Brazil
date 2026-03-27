@@ -29,6 +29,7 @@ ENV PATH=$PATH:$SPARK_HOME/bin:$SPARK_HOME/sbin
 CMD ["tail", "-f", "/dev/null"]
 
 COPY start.sh /start.sh
+RUN sed -i 's/\r$//' /start.sh && chmod +x /start.sh
 RUN chmod +x /start.sh
 
 CMD ["/start.sh"]
