@@ -11,7 +11,7 @@ services:
     environment:
       - SPARK_MODE=master
     volumes:
-      - ./spark/jobs:app/jobs
+      - ./spark/jobs:/app/jobs
     networks:
       - spark-net
 
