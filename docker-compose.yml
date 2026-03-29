@@ -4,42 +4,63 @@ services:
   spark-master:
     build: .
     container_name: gr2-spark-master
-    hostname: spark-master
+    hostname: gr2-spark-master
     ports:
-      - "8080:8080"   # Spark UI
-      - "7077:7077"   # Spark master port
+      - "8080:8080"   # Spark Master UI
+      - "7077:7077"   # Spark Master port
+      - "8000:8000"   # FastAPI
     environment:
-      - SPARK_MODE=master
+      SPARK_MODE: master
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      # AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_REGION: ${AWS_REGION}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
     volumes:
       - ./spark/jobs:/app/jobs
+      - ./main.py:/root/main.py
+      - ./spark-defaults.conf:/usr/local/gr2/spark/conf/spark-defaults.conf:ro
     networks:
       - spark-net
 
   spark-worker-1:
     build: .
     container_name: gr2-spark-worker-1
-    hostname: spark-worker-1
+    hostname: gr2-spark-worker-1
     depends_on:
       - spark-master
     environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER=spark://spark-master:7077
+      SPARK_MODE: worker
+      SPARK_MASTER: spark://gr2-spark-master:7077
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      # AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_REGION: ${AWS_REGION}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+    volumes:
+      - ./spark-defaults.conf:/usr/local/gr2/spark/conf/spark-defaults.conf:ro
     networks:
       - spark-net
 
   spark-worker-2:
     build: .
     container_name: gr2-spark-worker-2
-    hostname: spark-worker-2
+    hostname: gr2-spark-worker-2
     depends_on:
       - spark-master
     environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER=spark://spark-master:7077
+      SPARK_MODE: worker
+      SPARK_MASTER: spark://gr2-spark-master:7077
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      # AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_REGION: ${AWS_REGION}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+    volumes:
+      - ./spark-defaults.conf:/usr/local/gr2/spark/conf/spark-defaults.conf:ro
     networks:
       - spark-net
-  
-    # Airflow
+
   postgres:
     image: postgres:14
     container_name: airflow-postgres
@@ -75,7 +96,25 @@ services:
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
+    networks:
+      - spark-net
 
+  trino:
+    image: trinodb/trino:477
+    container_name: trino
+    restart: always
+    ports:
+      - "8090:8080"
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      # AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_REGION: ${AWS_REGION}
+      AWS_DEFAULT_REGION: ${AWS_REGION}
+    volumes:
+      - ./trino:/etc/trino
+    depends_on:
+      - spark-master
     networks:
       - spark-net
 
