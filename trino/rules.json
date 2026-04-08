@@ -15,13 +15,25 @@
     {
       "user": "admin",
       "catalog": "iceberg",
-      "schema": ".*",
+      "schema": "bronze",
+      "owner": true
+    },
+    {
+      "user": "admin",
+      "catalog": "iceberg",
+      "schema": "silver",
+      "owner": true
+    },
+    {
+      "user": "admin",
+      "catalog": "iceberg",
+      "schema": "gold",
       "owner": true
     },
     {
       "user": "guest",
       "catalog": "iceberg",
-      "schema": ".*",
+      "schema": "gold",
       "owner": false
     }
   ],
@@ -29,14 +41,28 @@
     {
       "user": "admin",
       "catalog": "iceberg",
-      "schema": ".*",
+      "schema": "bronze",
+      "table": ".*",
+      "privileges": ["SELECT", "INSERT", "DELETE", "UPDATE", "OWNERSHIP"]
+    },
+    {
+      "user": "admin",
+      "catalog": "iceberg",
+      "schema": "silver",
+      "table": ".*",
+      "privileges": ["SELECT", "INSERT", "DELETE", "UPDATE", "OWNERSHIP"]
+    },
+    {
+      "user": "admin",
+      "catalog": "iceberg",
+      "schema": "gold",
       "table": ".*",
       "privileges": ["SELECT", "INSERT", "DELETE", "UPDATE", "OWNERSHIP"]
     },
     {
       "user": "guest",
       "catalog": "iceberg",
-      "schema": ".*",
+      "schema": "gold",
       "table": ".*",
       "privileges": ["SELECT"]
     }
