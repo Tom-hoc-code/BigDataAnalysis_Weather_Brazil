@@ -15,14 +15,15 @@ from standardize_data import standardize_data
 
 
 # =====================================
-# PATH
+# PATH + CATALOG
 # =====================================
 BRONZE_PATH = "s3a://s3-group2-bigdata/bronze/"
 SILVER_PATH = "s3a://s3-group2-bigdata/silver/"
+CATALOG = "weather_catalog.weather_silver"
 
 
 # =====================================
-# SPARK CONFIG (16GB OPTIMIZED)
+# SPARK + ICEBERG
 # =====================================
 spark = (
     SparkSession.builder
@@ -31,12 +32,30 @@ spark = (
     .config("spark.executor.memory", "4g")
     .config("spark.executor.memoryOverhead", "1g")
     .config("spark.sql.shuffle.partitions", "120")
-    .config("spark.default.parallelism", "120")
     .config("spark.sql.adaptive.enabled", "true")
-    .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
-    .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+    .config(
+        "spark.sql.catalog.weather_catalog",
+        "org.apache.iceberg.spark.SparkCatalog"
+    )
+    .config("spark.sql.catalog.weather_catalog.type", "hadoop")
+    .config(
+        "spark.sql.catalog.weather_catalog.warehouse",
+        SILVER_PATH
+    )
     .getOrCreate()
 )
+
+spark.sql("CREATE NAMESPACE IF NOT EXISTS weather_catalog.weather_silver")
+
+
+# =====================================
+# HELPER SAVE ICEBERG
+# =====================================
+def save_iceberg(df, table_name):
+    (
+        df.writeTo(f"{CATALOG}.{table_name}")
+        .createOrReplace()
+    )
 
 
 # =====================================
@@ -54,11 +73,8 @@ df = clean_data(df)
 df = df.persist(StorageLevel.MEMORY_AND_DISK)
 df.count()
 
-
-# =====================================
-# ENSURE DATE TYPE
-# =====================================
 df = df.withColumn("date", col("date").cast("date"))
+
 
 # =====================================
 # DIM LOCATION
@@ -68,10 +84,7 @@ dim_location = (
         "station_code",
         "station_name",
         "state",
-        "region",
-        "latitude",
-        "longitude",
-        "elevation_m"
+        "region"
     )
     .dropDuplicates()
     .withColumn(
@@ -81,14 +94,13 @@ dim_location = (
                 "||",
                 col("station_code"),
                 col("state"),
-                col("region"),
-                col("latitude").cast("string"),
-                col("longitude").cast("string")
+                col("region")
             ),
             256
         )
     )
 )
+
 
 # =====================================
 # DIM DATE
@@ -112,6 +124,7 @@ dim_date = (
     )
 )
 
+
 # =====================================
 # DIM TIME
 # =====================================
@@ -123,14 +136,16 @@ dim_time = (
         sha2(col("hour").cast("string"), 256)
     )
 )
+
+
 # =====================================
 # DIM WEATHER CONDITION
 # =====================================
 dim_weather_condition = (
     df.select(
-        "temperature",
-        "humidity",
-        "wind_speed"
+        "temp_category",
+        "humidity_category",
+        "wind_level"
     )
     .dropDuplicates()
     .withColumn(
@@ -138,14 +153,15 @@ dim_weather_condition = (
         sha2(
             concat_ws(
                 "||",
-                col("temperature"),
-                col("humidity"),
-                col("wind_speed")
+                col("temp_category"),
+                col("humidity_category"),
+                col("wind_level")
             ),
             256
         )
     )
 )
+
 
 # =====================================
 # DIM ALERT
@@ -168,27 +184,31 @@ dim_alert = (
         )
     )
 )
+
+
 # =====================================
 # FACT HOURLY WEATHER
-# Grain = 1 station + 1 date + 1 hour
+# Grain = station + date + hour
 # =====================================
 fact_hourly = (
     df
     .join(
         dim_location,
-        [
-            "station_code",
-            "station_name",
-            "state",
-            "region",
-            "latitude",
-            "longitude",
-            "elevation_m"
-        ],
+        ["station_code", "station_name", "state", "region"],
         "left"
     )
     .join(dim_date, "date", "left")
     .join(dim_time, "hour", "left")
+    .join(
+        dim_weather_condition,
+        ["temp_category", "humidity_category", "wind_level"],
+        "left"
+    )
+    .join(
+        dim_alert,
+        ["alert_type", "severity"],
+        "left"
+    )
     .withColumn(
         "fact_key",
         sha2(
@@ -206,20 +226,27 @@ fact_hourly = (
         "date_key",
         "time_key",
         "location_key",
+        "condition_key",
+        "alert_key",
+
         "rainfall_hourly",
         "pressure",
         "pressure_max",
         "pressure_min",
         "solar_radiation",
+
         "temperature",
         "temperature_max",
         "temperature_min",
+
         "dew_point",
         "dew_point_max",
         "dew_point_min",
+
         "humidity",
         "humidity_max",
         "humidity_min",
+
         "wind_direction",
         "wind_speed",
         "wind_gust"
@@ -227,31 +254,17 @@ fact_hourly = (
 )
 
 
-# =====================================
-# DEBUG SAMPLE
-# =====================================
-dim_location.show(3, False)
-dim_date.show(3, False)
-dim_time.show(3, False)
-dim_weather_condition.show(3, False)
-dim_alert.show(3, False)
-fact_hourly.show(3, False)
 
 
 # =====================================
-# WRITE SILVER
+# SAVE ICEBERG TABLES
 # =====================================
-dim_location.write.mode("overwrite").parquet(SILVER_PATH + "dim_location/")
-dim_date.write.mode("overwrite").parquet(SILVER_PATH + "dim_date/")
-dim_time.write.mode("overwrite").parquet(SILVER_PATH + "dim_time/")
-dim_weather_condition.write.mode("overwrite").parquet(SILVER_PATH + "dim_weather_condition/")
-dim_alert.write.mode("overwrite").parquet(SILVER_PATH + "dim_alert/")
-
-fact_hourly.write \
-    .mode("overwrite") \
-    .partitionBy("date_key") \
-    .option("maxRecordsPerFile", 500000) \
-    .parquet(SILVER_PATH + "fact_hourly_weather/")
+save_iceberg(dim_location, "dim_location")
+save_iceberg(dim_date, "dim_date")
+save_iceberg(dim_time, "dim_time")
+save_iceberg(dim_weather_condition, "dim_weather_condition")
+save_iceberg(dim_alert, "dim_alert")
+save_iceberg(fact_hourly, "fact_hourly_weather")
 
 
-print(" WEATHER STAR SCHEMA ETL COMPLETED")
+print("✅ BRONZE TO SILVER COMPLETED")
