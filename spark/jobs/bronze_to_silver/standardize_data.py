@@ -70,6 +70,17 @@ def rename_columns(df: DataFrame) -> DataFrame:
             df = df.withColumnRenamed(old, new)
     return df
 
+def replace_date_with_parsed_date(df: DataFrame) -> DataFrame:
+
+    # xóa date cũ nếu có
+    if "date" in df.columns:
+        df = df.drop("date")
+
+    # đổi parsed_date -> date
+    if "parsed_date" in df.columns:
+        df = df.withColumnRenamed("parsed_date", "date")
+
+    return df
 
 def trim_whitespace(df: DataFrame) -> DataFrame:
     for c, t in df.dtypes:
@@ -172,12 +183,11 @@ def standardize_data(df: DataFrame) -> DataFrame:
     print("\n==== START STANDARDIZATION ====")
 
     df = rename_columns(df)
+    df = replace_date_with_parsed_date(df)
     df = remove_duplicate_columns(df)
     df = trim_whitespace(df)
     df = lowercase_text(df)
     df = cast_datatypes(df)
-
-    # ⭐ IMPORTANT FIX: FEATURE ENGINEERING
     df = add_features(df)
 
     print("\nFINAL SCHEMA:")
