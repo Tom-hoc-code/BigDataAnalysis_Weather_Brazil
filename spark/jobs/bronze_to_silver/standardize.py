@@ -121,29 +121,29 @@ def cast_datatypes(df: DataFrame) -> DataFrame:
 # =========================================================
 def add_features(df: DataFrame) -> DataFrame:
 
-    # # TEMP CATEGORY
-    # df = df.withColumn(
-    #     "temp_category",
-    #     when(col("temperature") < 10, "cold")
-    #     .when((col("temperature") >= 10) & (col("temperature") < 25), "normal")
-    #     .otherwise("hot")
-    # )
+    # TEMP CATEGORY
+    df = df.withColumn(
+        "temp_category",
+        when(col("temperature") < 10, "cold")
+        .when((col("temperature") >= 10) & (col("temperature") < 25), "normal")
+        .otherwise("hot")
+    )
 
-    # # HUMIDITY CATEGORY
-    # df = df.withColumn(
-    #     "humidity_category",
-    #     when(col("humidity") < 40, "dry")
-    #     .when((col("humidity") >= 40) & (col("humidity") < 70), "normal")
-    #     .otherwise("humid")
-    # )
+    # HUMIDITY CATEGORY
+    df = df.withColumn(
+        "humidity_category",
+        when(col("humidity") < 40, "dry")
+        .when((col("humidity") >= 40) & (col("humidity") < 70), "normal")
+        .otherwise("humid")
+    )
 
-    # # WIND LEVEL
-    # df = df.withColumn(
-    #     "wind_level",
-    #     when(col("wind_speed") < 3, "low")
-    #     .when((col("wind_speed") >= 3) & (col("wind_speed") < 8), "medium")
-    #     .otherwise("high")
-    # )
+    # WIND LEVEL
+    df = df.withColumn(
+        "wind_level",
+        when(col("wind_speed") < 3, "low")
+        .when((col("wind_speed") >= 3) & (col("wind_speed") < 8), "medium")
+        .otherwise("high")
+    )
 
     # ALERT TYPE
     df = df.withColumn(
@@ -173,9 +173,9 @@ def standardize_data(df: DataFrame) -> DataFrame:
 
     df = rename_columns(df)
     df = remove_duplicate_columns(df)
-    # df = trim_whitespace(df)
-    # df = lowercase_text(df)
-    # df = cast_datatypes(df)
+    df = trim_whitespace(df)
+    df = lowercase_text(df)
+    df = cast_datatypes(df)
 
     # ⭐ IMPORTANT FIX: FEATURE ENGINEERING
     df = add_features(df)

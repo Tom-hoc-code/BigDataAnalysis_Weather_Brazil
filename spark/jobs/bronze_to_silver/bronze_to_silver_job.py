@@ -274,7 +274,7 @@ spark = (
 # =====================================
 df = spark.read.parquet(BRONZE_PATH)
 
-df = df.filter(col("region") == "CO")
+# df = df.filter(col("region") == "CO")
 # =====================================
 # STANDARDIZE + CLEAN
 # =====================================
