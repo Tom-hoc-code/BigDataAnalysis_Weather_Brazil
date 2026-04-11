@@ -12,3 +12,4 @@ df.printSchema()
 # df.show(5, truncate=False)
 
 # spark-submit --master spark://gr2-spark-master:7077 /app/jobs/bronze_to_silver/bronze_to_silver_job.py
+# spark-submit --master spark://gr2-spark-master:7077 /app/jobs/silver_to_gold/silver_to_gold_job.py

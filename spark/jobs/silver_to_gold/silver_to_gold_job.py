@@ -7,24 +7,48 @@ from fact_extreme_events import build_fact_extreme_events
 from fact_monthly_climate_snapshot import build_fact_monthly_climate_snapshot
 from fact_weather_monthly import build_fact_weather_monthly
 from fact_regional_risk_daily_snapshot import build_fact_regional_risk_daily_snapshot
-from fact_extreme_event_yearly_snapshot import build_fact_extreme_event_yearly_snapshot
-
+from fact_extreme_event_yearly_snapshot import (
+    build_fact_extreme_event_yearly_snapshot
+)
 
 # =====================================
-# PATH
+# PATH + CATALOG
 # =====================================
 SILVER_PATH = "s3a://s3-group2-bigdata/silver/"
 GOLD_PATH = "s3a://s3-group2-bigdata/gold/"
+CATALOG = "weather_catalog.weather_gold"
 
 
 # =====================================
-# SPARK
+# SPARK + ICEBERG
 # =====================================
 spark = (
     SparkSession.builder
     .appName("silver_to_gold_weather")
+    .config(
+        "spark.sql.catalog.weather_catalog",
+        "org.apache.iceberg.spark.SparkCatalog"
+    )
+    .config("spark.sql.catalog.weather_catalog.type", "hadoop")
+    .config(
+        "spark.sql.catalog.weather_catalog.warehouse",
+        GOLD_PATH
+    )
     .getOrCreate()
 )
+
+spark.sql("CREATE NAMESPACE IF NOT EXISTS weather_catalog.weather_gold")
+
+
+# =====================================
+# HELPER SAVE ICEBERG
+# =====================================
+def save_iceberg(df, table_name):
+    (
+        df.writeTo(f"{CATALOG}.{table_name}")
+        .tableProperty("location", GOLD_PATH + table_name + "/")
+        .createOrReplace()
+    )
 
 
 # =====================================
@@ -33,9 +57,13 @@ spark = (
 dim_location = spark.read.parquet(SILVER_PATH + "dim_location/")
 dim_date = spark.read.parquet(SILVER_PATH + "dim_date/")
 dim_time = spark.read.parquet(SILVER_PATH + "dim_time/")
-dim_weather_condition = spark.read.parquet(SILVER_PATH + "dim_weather_condition/")
+dim_weather_condition = spark.read.parquet(
+    SILVER_PATH + "dim_weather_condition/"
+)
 dim_alert = spark.read.parquet(SILVER_PATH + "dim_alert/")
-fact_hourly = spark.read.parquet(SILVER_PATH + "fact_hourly_weather/")
+fact_hourly = spark.read.parquet(
+    SILVER_PATH + "fact_hourly_weather/"
+)
 
 
 # =====================================
@@ -50,15 +78,13 @@ df = (
     .join(dim_alert, "alert_key", "left")
 )
 
-
-# enrich month/year if needed
 if "date" in df.columns:
     df = df.withColumn("month", month("date"))
     df = df.withColumn("year", year("date"))
 
 
 # =====================================
-# BUILD 7 GOLD FACTS
+# BUILD 7 BUSINESS FACTS
 # =====================================
 fact_weather_aggregate = build_fact_weather_aggregate(df)
 fact_precip = build_fact_precipitation_analysis(df)
@@ -70,45 +96,25 @@ fact_yearly = build_fact_extreme_event_yearly_snapshot(fact_extreme)
 
 
 # =====================================
-# REPUBLISH BASE STAR SCHEMA TO GOLD
+# SAVE BASE STAR SCHEMA
 # =====================================
-dim_location.write.mode("overwrite").parquet(GOLD_PATH + "dim_location/")
-dim_date.write.mode("overwrite").parquet(GOLD_PATH + "dim_date/")
-dim_time.write.mode("overwrite").parquet(GOLD_PATH + "dim_time/")
-dim_weather_condition.write.mode("overwrite").parquet(GOLD_PATH + "dim_weather_condition/")
-dim_alert.write.mode("overwrite").parquet(GOLD_PATH + "dim_alert/")
-fact_hourly.write.mode("overwrite").parquet(GOLD_PATH + "fact_hourly_observation/")
+# save_iceberg(dim_location, "dim_location")
+# save_iceberg(dim_date, "dim_date")
+# save_iceberg(dim_time, "dim_time")
+# save_iceberg(dim_weather_condition, "dim_weather_condition")
+# save_iceberg(dim_alert, "dim_alert")
+# save_iceberg(fact_hourly, "fact_hourly_observation")
 
 
 # =====================================
-# WRITE 7 BUSINESS FACTS
+# SAVE 7 BUSINESS FACTS
 # =====================================
-fact_weather_aggregate.write.mode("overwrite").parquet(
-    GOLD_PATH + "fact_weather_aggregate/"
-)
+save_iceberg(fact_weather_aggregate, "fact_weather_aggregate")
+save_iceberg(fact_precip, "fact_precipitation_analysis")
+save_iceberg(fact_extreme, "fact_extreme_events")
+save_iceberg(fact_monthly, "fact_monthly_climate_snapshot")
+save_iceberg(fact_weather_monthly, "fact_weather_monthly")
+save_iceberg(fact_risk, "fact_regional_risk_daily_snapshot")
+save_iceberg(fact_yearly, "fact_extreme_event_yearly_snapshot")
 
-fact_precip.write.mode("overwrite").parquet(
-    GOLD_PATH + "fact_precipitation_analysis/"
-)
-
-fact_extreme.write.mode("overwrite").parquet(
-    GOLD_PATH + "fact_extreme_events/"
-)
-
-fact_monthly.write.mode("overwrite").parquet(
-    GOLD_PATH + "fact_monthly_climate_snapshot/"
-)
-
-fact_weather_monthly.write.mode("overwrite").parquet(
-    GOLD_PATH + "fact_weather_monthly/"
-)
-
-fact_risk.write.mode("overwrite").parquet(
-    GOLD_PATH + "fact_regional_risk_daily_snapshot/"
-)
-
-fact_yearly.write.mode("overwrite").parquet(
-    GOLD_PATH + "fact_extreme_event_yearly_snapshot/"
-)
-
-print(" SILVER TO GOLD COMPLETED")
+print("✅ SILVER TO GOLD ICEBERG COMPLETED")
