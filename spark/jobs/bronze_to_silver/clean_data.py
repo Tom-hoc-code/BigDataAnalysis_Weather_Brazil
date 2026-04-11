@@ -50,7 +50,7 @@ def clean_data(df: DataFrame) -> DataFrame:
     print("START CLEANING DATA")
     print("=" * 60)
     df = remove_duplicates(df)
-    # df = remove_nulls(df)
-    # df = remove_negative_values(df)
-    # df = remove_outliers(df)
+    df = remove_nulls(df)
+    df = remove_negative_values(df)
+    df = remove_outliers(df)
     return df

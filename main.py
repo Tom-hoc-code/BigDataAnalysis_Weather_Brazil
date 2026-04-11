@@ -45,8 +45,73 @@ def run_spark_job():
 
     except Exception as e:
         return {"error": str(e)}
+    
+@app.get("/run-job/etl/bronze-to-silver")
+def run_spark_job():
+    try:
+        job_id = str(uuid.uuid4())[:8]
 
+        log_out = f"/tmp/spark_{job_id}.out"
+        log_err = f"/tmp/spark_{job_id}.err"
 
+        # đảm bảo file tồn tại
+        open(log_out, "w").close()
+        open(log_err, "w").close()
+
+        subprocess.Popen(
+            [
+                "spark-submit",
+                "--master", "spark://gr2-spark-master:7077",
+                "/app/jobs/bronze_to_silver/bronze_to_silver_job.py"
+            ],
+            stdout=open(log_out, "w"),
+            stderr=open(log_err, "w"),
+            cwd="/app"
+        )
+
+        return {
+            "status": "submitted",
+            "job_id": job_id,
+            "log_out": log_out,
+            "log_err": log_err
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/run-job/etl/silver-to-gold")
+def run_spark_job():
+    try:
+        job_id = str(uuid.uuid4())[:8]
+
+        log_out = f"/tmp/spark_{job_id}.out"
+        log_err = f"/tmp/spark_{job_id}.err"
+
+        # đảm bảo file tồn tại
+        open(log_out, "w").close()
+        open(log_err, "w").close()
+
+        subprocess.Popen(
+            [
+                "spark-submit",
+                "--master", "spark://gr2-spark-master:7077",
+                "/app/jobs/silver_to_gold/silver_to_gold_job.py"
+            ],
+            stdout=open(log_out, "w"),
+            stderr=open(log_err, "w"),
+            cwd="/app"
+        )
+
+        return {
+            "status": "submitted",
+            "job_id": job_id,
+            "log_out": log_out,
+            "log_err": log_err
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+    
 # Check log của job
 @app.get("/job/{job_id}")
 def get_job_log(job_id: str):
