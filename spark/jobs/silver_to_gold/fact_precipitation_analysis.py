@@ -1,23 +1,29 @@
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import sum, when, col
+from pyspark.sql.functions import col, sum, when, round
 
 
 def build_fact_precipitation_analysis(df: DataFrame) -> DataFrame:
     return (
-        df.groupBy("date_key", "location_key")
+        df.groupBy("date_time_key", "region", "state")
         .agg(
-            sum("rainfall_hourly").alias("total_rainfall")
+            round(sum("rainfall_hourly"), 2).alias("total_rainfall")
         )
         .withColumn(
             "drought_index",
-            when(col("total_rainfall") < 20, 0.9)
-            .when(col("total_rainfall") < 50, 0.5)
-            .otherwise(0.1)
+            round(
+                when(col("total_rainfall") < 20, 0.9)
+                .when(col("total_rainfall") < 50, 0.5)
+                .otherwise(0.1),
+                2
+            )
         )
         .withColumn(
             "flood_risk",
-            when(col("total_rainfall") > 100, "high")
-            .when(col("total_rainfall") > 50, "medium")
-            .otherwise("low")
+            round(
+                when(col("total_rainfall") > 100, 1)
+                .when(col("total_rainfall") > 50, 0.5)
+                .otherwise(0),
+                2
+            )
         )
     )
