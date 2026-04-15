@@ -1,13 +1,14 @@
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import when, lit
+from pyspark.sql.functions import lit
 
 
 def build_fact_extreme_events(df: DataFrame) -> DataFrame:
     return (
         df.filter(df.alert_type != "normal")
         .select(
-            "date_key",
-            "location_key",
+            "date_time_key",
+            "region",
+            "state",
             "alert_type",
             "severity"
         )

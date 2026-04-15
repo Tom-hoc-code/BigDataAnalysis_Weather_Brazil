@@ -1,4 +1,5 @@
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import lit
 from pyspark.sql.functions import (
     col,
     dayofmonth,
@@ -19,75 +20,119 @@ from standardize_data import standardize_data
 # =====================================
 BRONZE_PATH = "s3a://s3-group2-bigdata/bronze/"
 SILVER_PATH = "s3a://s3-group2-bigdata/silver/"
-CATALOG = "weather_catalog.weather_silver"
+WareHouse_PATH = "s3a://s3-group2-bigdata/"
+
+CATALOG = "weather_catalog"
+SILVER_DB = "silver"
 
 
 # =====================================
-# SPARK + ICEBERG
+# SPARK + ICEBERG + GLUE
 # =====================================
 spark = (
     SparkSession.builder
-    .appName("bronze_to_silver_weather_dw")
+    .appName("bronze_to_silver_weather_dw_iceberg")
     .config("spark.driver.memory", "4g")
     .config("spark.executor.memory", "4g")
     .config("spark.executor.memoryOverhead", "1g")
     .config("spark.sql.shuffle.partitions", "120")
     .config("spark.sql.adaptive.enabled", "true")
+    .config("spark.sql.adaptive.coalescePartitions.enabled", "true")
     .config(
-        "spark.sql.catalog.weather_catalog",
+        "spark.sql.extensions",
+        "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+    )
+    .config(
+        f"spark.sql.catalog.{CATALOG}",
         "org.apache.iceberg.spark.SparkCatalog"
     )
-    .config("spark.sql.catalog.weather_catalog.type", "hadoop")
     .config(
-        "spark.sql.catalog.weather_catalog.warehouse",
-        SILVER_PATH
+        f"spark.sql.catalog.{CATALOG}.catalog-impl",
+        "org.apache.iceberg.aws.glue.GlueCatalog"
+    )
+    .config(
+        f"spark.sql.catalog.{CATALOG}.io-impl",
+        "org.apache.iceberg.aws.s3.S3FileIO"
+    )
+    .config(
+        f"spark.sql.catalog.{CATALOG}.warehouse",
+        WareHouse_PATH
+    )
+    .config(
+        f"spark.sql.catalog.{CATALOG}.glue.region",
+        "ap-southeast-2"
     )
     .getOrCreate()
 )
 
-spark.sql("CREATE NAMESPACE IF NOT EXISTS weather_catalog.weather_silver")
-
-
-# =====================================
-# HELPER SAVE ICEBERG
-# =====================================
-def save_iceberg(df, table_name):
-    (
-        df.writeTo(f"{CATALOG}.{table_name}")
-        .createOrReplace()
-    )
+spark.sparkContext.setLogLevel("WARN")
 
 
 # =====================================
 # READ BRONZE
 # =====================================
+print("READ BRONZE DATA")
 df = spark.read.parquet(BRONZE_PATH)
-
-# debug từng vùng cho data lớn
-# df = df.filter(col("region") == "CO")
+# df = spark.createDataFrame(data, columns)
 
 
 # =====================================
 # STANDARDIZE + CLEAN
 # =====================================
+print("START CLEANING + STANDARDIZATION")
 df = standardize_data(df)
 df = clean_data(df)
 
 df = df.persist(StorageLevel.MEMORY_AND_DISK)
 df.count()
 
-df = df.withColumn("date", col("date").cast("date"))
+
+# =====================================
+# CAST TYPES
+# =====================================
+print("CAST DATA TYPES")
+df = (
+    df
+    .withColumn("date", col("date").cast("date"))
+    # giữ hour là string để khớp DDL dim_date_time.hour VARCHAR
+    .withColumn("hour", col("hour").cast("string"))
+    .withColumn("latitude", col("latitude").cast("double"))
+    .withColumn("longitude", col("longitude").cast("double"))
+    .withColumn("elevation_m", col("elevation_m").cast("double"))
+    .withColumn("rainfall_hourly", col("rainfall_hourly").cast("double"))
+    .withColumn("pressure", col("pressure").cast("double"))
+    .withColumn("pressure_max", col("pressure_max").cast("double"))
+    .withColumn("pressure_min", col("pressure_min").cast("double"))
+    .withColumn("solar_radiation", col("solar_radiation").cast("double"))
+    .withColumn("temperature", col("temperature").cast("double"))
+    .withColumn("temperature_max", col("temperature_max").cast("double"))
+    .withColumn("temperature_min", col("temperature_min").cast("double"))
+    .withColumn("dew_point", col("dew_point").cast("double"))
+    .withColumn("dew_point_max", col("dew_point_max").cast("double"))
+    .withColumn("dew_point_min", col("dew_point_min").cast("double"))
+    .withColumn("humidity", col("humidity").cast("double"))
+    .withColumn("humidity_max", col("humidity_max").cast("double"))
+    .withColumn("humidity_min", col("humidity_min").cast("double"))
+    .withColumn("wind_speed", col("wind_speed").cast("double"))
+    .withColumn("wind_gust", col("wind_gust").cast("double"))
+    .withColumn("wind_direction", col("wind_direction").cast("double"))
+    .withColumn("severity", col("severity").cast("string"))
+)
 
 
 # =====================================
 # DIM LOCATION
+# Khớp DDL:
+# location_key, station_code, region, state, latitude, longitude
 # =====================================
+print("BUILD DIM LOCATION")
 dim_location = (
     df.select(
         "station_code",
-        "station_name",
+        "region",
         "state",
-        "region"
+        "latitude",
+        "longitude"
     )
     .dropDuplicates()
     .withColumn(
@@ -97,19 +142,32 @@ dim_location = (
                 "||",
                 col("station_code"),
                 col("state"),
-                col("region")
+                col("region"),
+                col("latitude").cast("string"),
+                col("longitude").cast("string")
             ),
             256
         )
+    )
+    .select(
+        "location_key",
+        "station_code",
+        "region",
+        "state",
+        "latitude",
+        "longitude"
     )
 )
 
 
 # =====================================
-# DIM DATE
+# DIM DATE TIME
+# Khớp DDL:
+# date_time_key, date, hour, day, month, year, season
 # =====================================
-dim_date = (
-    df.select("date")
+print("BUILD DIM DATE TIME")
+dim_date_time = (
+    df.select("date", "hour")
     .dropDuplicates()
     .withColumn("day", dayofmonth("date"))
     .withColumn("month", month("date"))
@@ -122,28 +180,34 @@ dim_date = (
         .otherwise("Autumn")
     )
     .withColumn(
-        "date_key",
-        sha2(col("date").cast("string"), 256)
+        "date_time_key",
+        sha2(
+            concat_ws(
+                "||",
+                col("date").cast("string"),
+                col("hour")
+            ),
+            256
+        )
     )
-)
-
-
-# =====================================
-# DIM TIME
-# =====================================
-dim_time = (
-    df.select("hour")
-    .dropDuplicates()
-    .withColumn(
-        "time_key",
-        sha2(col("hour").cast("string"), 256)
+    .select(
+        "date_time_key",
+        "date",
+        "hour",
+        "day",
+        "month",
+        "year",
+        "season"
     )
 )
 
 
 # =====================================
 # DIM WEATHER CONDITION
+# Khớp DDL:
+# condition_key, temp_category, humidity_category, wind_level
 # =====================================
+print("BUILD DIM WEATHER CONDITION")
 dim_weather_condition = (
     df.select(
         "temp_category",
@@ -163,12 +227,20 @@ dim_weather_condition = (
             256
         )
     )
+    .select(
+        "condition_key",
+        "temp_category",
+        "humidity_category",
+        "wind_level"
+    )
 )
 
 
 # =====================================
 # DIM ALERT
+# Khớp DDL
 # =====================================
+print("BUILD DIM ALERT")
 dim_alert = (
     df.select(
         "alert_type",
@@ -186,22 +258,35 @@ dim_alert = (
             256
         )
     )
+    .select("alert_key", "alert_type", "severity")
 )
 
 
 # =====================================
-# FACT HOURLY WEATHER
-# Grain = station + date + hour
+# FACT HOURLY OBSERVATION
+# Khớp DDL:
+# fact_key, observation_id, date_time_key, location_key, condition_key,
+# alert_key, source_file, ...
 # =====================================
+print("BUILD FACT HOURLY OBSERVATION")
 fact_hourly = (
     df
     .join(
         dim_location,
-        ["station_code", "station_name", "state", "region"],
+        [
+            "station_code",
+            "region",
+            "state",
+            "latitude",
+            "longitude"
+        ],
         "left"
     )
-    .join(dim_date, "date", "left")
-    .join(dim_time, "hour", "left")
+    .join(
+        dim_date_time,
+        ["date", "hour"],
+        "left"
+    )
     .join(
         dim_weather_condition,
         ["temp_category", "humidity_category", "wind_level"],
@@ -217,39 +302,35 @@ fact_hourly = (
         sha2(
             concat_ws(
                 "||",
-                col("location_key"),
-                col("date_key"),
-                col("time_key")
+                col("observation_id"),
+                col("date_time_key"),
+                col("location_key")
             ),
             256
         )
     )
     .select(
         "fact_key",
-        "date_key",
-        "time_key",
+        "observation_id",
+        "date_time_key",
         "location_key",
         "condition_key",
         "alert_key",
-
+        "source_file",
         "rainfall_hourly",
         "pressure",
         "pressure_max",
         "pressure_min",
         "solar_radiation",
-
         "temperature",
         "temperature_max",
         "temperature_min",
-
         "dew_point",
         "dew_point_max",
         "dew_point_min",
-
         "humidity",
         "humidity_max",
         "humidity_min",
-
         "wind_direction",
         "wind_speed",
         "wind_gust"
@@ -257,17 +338,30 @@ fact_hourly = (
 )
 
 
+# =====================================
+# OPTIONAL DEBUG
+# =====================================
+print("DEBUG SAMPLE")
+dim_location.show(3, False)
+dim_date_time.show(3, False)
+dim_weather_condition.show(3, False)
+dim_alert.show(3, False)
+fact_hourly.show(3, False)
 
 
 # =====================================
-# SAVE ICEBERG TABLES
+# WRITE INTO EXISTING ICEBERG TABLES
 # =====================================
-save_iceberg(dim_location, "dim_location")
-save_iceberg(dim_date, "dim_date")
-save_iceberg(dim_time, "dim_time")
-save_iceberg(dim_weather_condition, "dim_weather_condition")
-save_iceberg(dim_alert, "dim_alert")
-save_iceberg(fact_hourly, "fact_hourly_weather")
+print("WRITE INTO EXISTING ICEBERG TABLES")
 
+# Dim tables của bạn không partition trong DDL
+# nên dùng overwriteFiles() phù hợp hơn overwritePartitions()
+dim_location.writeTo(f"{CATALOG}.{SILVER_DB}.dim_location").overwrite(lit(True))
+dim_date_time.writeTo(f"{CATALOG}.{SILVER_DB}.dim_date_time").overwrite(lit(True))
+dim_weather_condition.writeTo(f"{CATALOG}.{SILVER_DB}.dim_weather_condition").overwrite(lit(True))
+dim_alert.writeTo(f"{CATALOG}.{SILVER_DB}.dim_alert").overwrite(lit(True))
 
-print("✅ BRONZE TO SILVER COMPLETED")
+# Fact table có partitioning bucket(location_key, 16)
+fact_hourly.writeTo(f"{CATALOG}.{SILVER_DB}.fact_hourly_observation").overwrite(lit(True))
+
+print("BRONZE TO SILVER ICEBERG LOAD COMPLETED")
