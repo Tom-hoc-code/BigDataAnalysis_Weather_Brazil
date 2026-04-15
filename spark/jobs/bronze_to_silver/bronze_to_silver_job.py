@@ -76,7 +76,6 @@ spark.sparkContext.setLogLevel("WARN")
 # =====================================
 print("READ BRONZE DATA")
 df = spark.read.parquet(BRONZE_PATH)
-# df = spark.createDataFrame(data, columns)
 
 
 # =====================================
@@ -124,8 +123,6 @@ df = (
 
 # =====================================
 # DIM LOCATION
-# Khớp DDL:
-# location_key, station_code, region, state, latitude, longitude
 # =====================================
 print("BUILD DIM LOCATION")
 dim_location = (
@@ -164,8 +161,6 @@ dim_location = (
 
 # =====================================
 # DIM DATE TIME
-# Khớp DDL:
-# date_time_key, date, hour, day, month, year, season
 # =====================================
 print("BUILD DIM DATE TIME")
 dim_date_time = (
@@ -206,8 +201,6 @@ dim_date_time = (
 
 # =====================================
 # DIM WEATHER CONDITION
-# Khớp DDL:
-# condition_key, temp_category, humidity_category, wind_level
 # =====================================
 print("BUILD DIM WEATHER CONDITION")
 dim_weather_condition = (
@@ -240,7 +233,6 @@ dim_weather_condition = (
 
 # =====================================
 # DIM ALERT
-# Khớp DDL
 # =====================================
 print("BUILD DIM ALERT")
 dim_alert = (
@@ -266,9 +258,6 @@ dim_alert = (
 
 # =====================================
 # FACT HOURLY OBSERVATION
-# Khớp DDL:
-# fact_key, observation_id, date_time_key, location_key, condition_key,
-# alert_key, source_file, ...
 # =====================================
 print("BUILD FACT HOURLY OBSERVATION")
 fact_hourly = (
@@ -356,14 +345,10 @@ fact_hourly.show(3, False)
 # =====================================
 print("WRITE INTO EXISTING ICEBERG TABLES")
 
-# Dim tables của bạn không partition trong DDL
-# nên dùng overwriteFiles() phù hợp hơn overwritePartitions()
 dim_location.writeTo(f"{CATALOG}.{SILVER_DB}.dim_location").overwrite(lit(True))
 dim_date_time.writeTo(f"{CATALOG}.{SILVER_DB}.dim_date_time").overwrite(lit(True))
 dim_weather_condition.writeTo(f"{CATALOG}.{SILVER_DB}.dim_weather_condition").overwrite(lit(True))
 dim_alert.writeTo(f"{CATALOG}.{SILVER_DB}.dim_alert").overwrite(lit(True))
-
-# Fact table có partitioning bucket(location_key, 16)
 fact_hourly.writeTo(f"{CATALOG}.{SILVER_DB}.fact_hourly_observation").overwrite(lit(True))
 
 print("BRONZE TO SILVER ICEBERG LOAD COMPLETED")

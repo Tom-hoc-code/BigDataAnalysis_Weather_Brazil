@@ -31,13 +31,11 @@ def remove_negative_values(df: DataFrame) -> DataFrame:
 
 
 def remove_outliers(df: DataFrame) -> DataFrame:
-    # nhiệt độ hợp lý
     df = df.filter(
         (col("temperature").cast("double") >= -20) &
         (col("temperature").cast("double") <= 60)
     )
 
-    # độ ẩm
     df = df.filter(
         (col("humidity").cast("double") >= 0) &
         (col("humidity").cast("double") <= 100)

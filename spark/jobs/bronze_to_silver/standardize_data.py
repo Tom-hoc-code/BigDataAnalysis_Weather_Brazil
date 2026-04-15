@@ -75,11 +75,9 @@ def rename_columns(df: DataFrame) -> DataFrame:
 
 def replace_date_with_parsed_date(df: DataFrame) -> DataFrame:
 
-    # xóa date cũ nếu có
     if "date" in df.columns:
         df = df.drop("date")
 
-    # đổi parsed_date -> date
     if "parsed_date" in df.columns:
         df = df.withColumnRenamed("parsed_date", "date")
 
@@ -131,7 +129,7 @@ def cast_datatypes(df: DataFrame) -> DataFrame:
 
 
 # =========================================================
-# FEATURE ENGINEERING (IMPORTANT FIX)
+# FEATURE ENGINEERING
 # =========================================================
 def add_features(df: DataFrame) -> DataFrame:
 
