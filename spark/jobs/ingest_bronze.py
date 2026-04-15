@@ -33,7 +33,6 @@ df = (
     .csv(SOURCE_PATH)
 )
 
-# thêm thông tin file nguồn để trace
 df = df.withColumn("source_file", input_file_name())
 
 input_count = df.count()

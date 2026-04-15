@@ -48,7 +48,6 @@ WITH (
 );
 
 -- 3) DIM WEATHER CONDITION
--- Theo schema FINAL của bạn: temp_category, humidity_category, wind_level
 CREATE TABLE IF NOT EXISTS iceberg.silver.dim_weather_condition (
     condition_key VARCHAR,
     temp_category VARCHAR,
@@ -213,7 +212,6 @@ WITH (
 );
 
 -- 12) FACT WEATHER WEATHER MONTHLY
--- Giữ theo đúng tên trong schema bạn gửi
 CREATE TABLE IF NOT EXISTS iceberg.gold.fact_weather_monthly (
     date_time_key VARCHAR,
     month INTEGER,

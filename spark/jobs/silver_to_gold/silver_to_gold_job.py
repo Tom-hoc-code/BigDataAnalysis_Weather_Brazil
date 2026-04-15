@@ -106,14 +106,14 @@ if "date" in df.columns:
 # BUILD 7 BUSINESS FACTS
 # =====================================
 print("BUILD GOLD FACT TABLES")
-fact_weather_aggregate = build_fact_weather_aggregate(df) #đã xong
-fact_precip = build_fact_precipitation_analysis(df) # đã xong
-fact_extreme = build_fact_extreme_events(df) # Đã xong
-fact_monthly = build_fact_monthly_climate_snapshot(df) # đã xong
-fact_weather_monthly = build_fact_weather_monthly(fact_precip, dim_date_time) # đã xong
+fact_weather_aggregate = build_fact_weather_aggregate(df)
+fact_precip = build_fact_precipitation_analysis(df) 
+fact_extreme = build_fact_extreme_events(df) 
+fact_monthly = build_fact_monthly_climate_snapshot(df) 
+fact_weather_monthly = build_fact_weather_monthly(fact_precip, dim_date_time) 
 
-fact_risk = build_fact_regional_risk_daily_snapshot(df) # đã xong
-fact_yearly = build_fact_extreme_event_yearly_snapshot(dim_date_time, fact_extreme) # đã xong
+fact_risk = build_fact_regional_risk_daily_snapshot(df) 
+fact_yearly = build_fact_extreme_event_yearly_snapshot(dim_date_time, fact_extreme) 
 
 
 
