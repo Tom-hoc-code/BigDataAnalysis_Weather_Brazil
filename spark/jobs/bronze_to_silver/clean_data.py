@@ -1,14 +1,14 @@
+# =====================================
+# Nguyen Huu Tam - 23133067
+# =====================================
 from pyspark.sql.functions import col, when
 from pyspark.sql import DataFrame
-
-
 
 def remove_duplicates(df: DataFrame) -> DataFrame:
     return df.dropDuplicates()
 
 
 def remove_nulls(df: DataFrame) -> DataFrame:
-    # bỏ record thiếu ngày hoặc trạm 
     return df.dropna(subset=["date", "hour", "station_code"])
 
 

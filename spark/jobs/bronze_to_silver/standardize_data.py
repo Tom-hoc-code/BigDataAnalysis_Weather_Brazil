@@ -1,3 +1,6 @@
+# =====================================
+# Nguyen Huu Tam - 23133067
+# =====================================
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, trim, lower, when, sha2, concat_ws, dayofmonth, month, year
 

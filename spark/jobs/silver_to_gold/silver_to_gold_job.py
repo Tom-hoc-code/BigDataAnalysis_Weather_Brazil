@@ -1,3 +1,6 @@
+# =====================================
+# Nguyen Huu Tam - 23133067
+# =====================================
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, month, year, dayofmonth
 import random
@@ -61,8 +64,6 @@ spark = (
 )
 
 spark.sparkContext.setLogLevel("WARN")
-
-# Tạo namespace gold nếu chưa có
 spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {CATALOG}.{GOLD_DB}")
 
 
@@ -92,7 +93,6 @@ df = (
     .join(dim_alert, "alert_key", "left")
 )
 
-# Nếu chưa có month/year thì bổ sung từ date
 if "date" in df.columns:
     if "day" not in df.columns:
         df = df.withColumn("day", dayofmonth(col("date")))

@@ -1,3 +1,6 @@
+# =====================================
+# Nguyen Duc Thinh - 23133073
+# =====================================
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col,
