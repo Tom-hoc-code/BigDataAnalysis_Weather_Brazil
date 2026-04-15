@@ -2,6 +2,7 @@ from pyspark.sql.functions import col, when
 from pyspark.sql import DataFrame
 
 
+
 def remove_duplicates(df: DataFrame) -> DataFrame:
     return df.dropDuplicates()
 

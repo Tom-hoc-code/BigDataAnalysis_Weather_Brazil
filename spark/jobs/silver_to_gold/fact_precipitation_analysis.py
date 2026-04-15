@@ -1,7 +1,6 @@
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, sum, when, round
 
-
 def build_fact_precipitation_analysis(df: DataFrame) -> DataFrame:
     return (
         df.groupBy("date_time_key", "region", "state")

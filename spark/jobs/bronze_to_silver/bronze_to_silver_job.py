@@ -94,7 +94,6 @@ print("CAST DATA TYPES")
 df = (
     df
     .withColumn("date", col("date").cast("date"))
-    # giữ hour là string để khớp DDL dim_date_time.hour VARCHAR
     .withColumn("hour", col("hour").cast("string"))
     .withColumn("latitude", col("latitude").cast("double"))
     .withColumn("longitude", col("longitude").cast("double"))

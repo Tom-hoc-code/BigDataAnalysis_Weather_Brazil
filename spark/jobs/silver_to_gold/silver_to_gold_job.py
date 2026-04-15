@@ -23,7 +23,6 @@ GOLD_DB = "gold"
 
 # =====================================
 # SPARK + ICEBERG + GLUE
-# Làm tương tự bronze_to_silver
 # =====================================
 spark = (
     SparkSession.builder
@@ -70,7 +69,6 @@ spark.sql(f"CREATE NAMESPACE IF NOT EXISTS {CATALOG}.{GOLD_DB}")
 
 # =====================================
 # READ ALL SILVER TABLES FROM ICEBERG
-# Không đọc parquet trực tiếp nữa
 # =====================================
 print("READ SILVER ICEBERG TABLES")
 
@@ -83,7 +81,6 @@ fact_hourly = spark.table(f"{CATALOG}.{SILVER_DB}.fact_hourly_observation")
 
 # # =====================================
 # # BUILD BUSINESS DATAFRAME
-# # Join đúng theo khóa của silver hiện tại
 # # =====================================
 print("BUILD BUSINESS DATAFRAME")
 
@@ -124,18 +121,17 @@ fact_yearly = build_fact_extreme_event_yearly_snapshot(dim_date_time, fact_extre
 # OPTIONAL DEBUG
 # =====================================
 print("DEBUG SAMPLE")
-# fact_weather_aggregate.show(3, False)
-# fact_precip.show(3, False)
-# fact_extreme.show(3, False)
-# fact_monthly.show(3, False)
-# fact_weather_monthly.show(3, False)
-# fact_risk.show(3, False)
-# fact_yearly.show(3, False)
+fact_weather_aggregate.show(3, False)
+fact_precip.show(3, False)
+fact_extreme.show(3, False)
+fact_monthly.show(3, False)
+fact_weather_monthly.show(3, False)
+fact_risk.show(3, False)
+fact_yearly.show(3, False)
 
 
 # =====================================
 # WRITE GOLD ICEBERG TABLES
-# Ghi giống bronze_to_silver
 # =====================================
 print("WRITE GOLD ICEBERG TABLES")
 fact_weather_aggregate.writeTo(f"{CATALOG}.{GOLD_DB}.fact_weather_aggregate").overwrite(lit(True))

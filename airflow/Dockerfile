@@ -41,6 +41,8 @@ RUN pip install --upgrade pip
 
 RUN pip install "apache-airflow==${AIRFLOW_VERSION}" \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt" && \
+    pip install "apache-airflow-providers-amazon" \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt" && \
     pip install requests psycopg2-binary
 
 ENV AIRFLOW__CORE__LOAD_EXAMPLES=False

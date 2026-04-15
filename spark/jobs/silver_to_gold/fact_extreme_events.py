@@ -1,7 +1,6 @@
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import lit
 
-
 def build_fact_extreme_events(df: DataFrame) -> DataFrame:
     return (
         df.filter(df.alert_type != "normal")

@@ -1,7 +1,6 @@
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import count, sum, avg, col, when, round
 
-
 def build_fact_extreme_event_yearly_snapshot(
         df_date_time: DataFrame,
         df_extreme: DataFrame
