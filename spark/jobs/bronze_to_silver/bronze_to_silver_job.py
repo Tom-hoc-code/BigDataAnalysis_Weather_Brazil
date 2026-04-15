@@ -1,3 +1,6 @@
+# =====================================
+# Nguyen Huu Tam - 23133067
+# =====================================
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import lit
 from pyspark.sql.functions import (
@@ -24,20 +27,6 @@ WareHouse_PATH = "s3a://s3-group2-bigdata/"
 
 CATALOG = "weather_catalog"
 SILVER_DB = "silver"
-
-# data = [
-#     ("obs_001","00",0.0,1012.5,1015.0,1010.0,0.0,22.5,18.0,25.0,20.0,19.5,17.0,85.0,60.0,72.0,180.0,15.0,8.0,"Sao Paulo","Station A","STA001",-23.55,-46.63,760.0,"file_01.csv","2023-01-01","Southeast","Mild","Normal","Moderate","None","Low"),
-#     ("obs_002","01",0.5,1011.0,1013.5,1009.0,0.0,21.0,17.5,23.0,19.5,18.5,16.0,90.0,65.0,75.0,200.0,20.0,10.0,"Sao Paulo","Station A","STA001",-23.55,-46.63,760.0,"file_01.csv","2023-01-01","Southeast","Cool","High","Strong","Rain","Medium"),
-# ]
-
-# columns = [
-#     "observation_id","hour","rainfall_hourly","pressure","pressure_max","pressure_min",
-#     "solar_radiation","temperature","dew_point","temperature_max","temperature_min",
-#     "dew_point_max","dew_point_min","humidity_max","humidity_min","humidity",
-#     "wind_direction","wind_gust","wind_speed","state","station_name","station_code",
-#     "latitude","longitude","elevation_m","source_file","date","region",
-#     "temp_category","humidity_category","wind_level","alert_type","severity"
-# ]
 
 
 # =====================================
@@ -108,7 +97,6 @@ print("CAST DATA TYPES")
 df = (
     df
     .withColumn("date", col("date").cast("date"))
-    # giữ hour là string để khớp DDL dim_date_time.hour VARCHAR
     .withColumn("hour", col("hour").cast("string"))
     .withColumn("latitude", col("latitude").cast("double"))
     .withColumn("longitude", col("longitude").cast("double"))

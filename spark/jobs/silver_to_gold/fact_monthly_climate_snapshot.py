@@ -1,6 +1,8 @@
+# =====================================
+# Nguyen Huu Tam - 23133067
+# =====================================
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import avg, sum, count, when, col, round
-
 
 def build_fact_monthly_climate_snapshot(
     df: DataFrame
