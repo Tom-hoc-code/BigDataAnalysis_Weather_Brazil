@@ -90,7 +90,7 @@ def trigger_job(api_endpoint, poll_interval=10, timeout=60 * 60, **context):
 with DAG(
     dag_id="etl_bronze_to_gold_pipeline",
     start_date=datetime(2024, 1, 1),
-    schedule=None,
+    schedule="@daily",
     catchup=False,
 ) as dag:
 
@@ -148,4 +148,4 @@ with DAG(
     )
 
     # FLOW
-    run_bronze_to_silver >> run_bronze_dq >> run_silver_dq >> run_silver_to_gold
+    run_bronze_dq >> run_bronze_to_silver >> run_silver_dq >> run_silver_to_gold
